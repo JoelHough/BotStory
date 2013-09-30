@@ -58,7 +58,7 @@ class BotStory < Sinatra::Base
       'canvas.instructure.com' => {
         editor_button: {
           #url: '',
-          icon_url: 'https://lti-examples.heroku.com/graph.tk/favicon.png',
+          icon_url: 'http://localhost:5000/favicon.png',
           enabled: true,
           selection_width: '840',
           selection_height: '640',

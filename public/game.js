@@ -271,10 +271,12 @@ Crafty.c('Bumper', {
     _onHit: function() {
         this.active = true;
         this.color('red');
+        this.trigger('Bump', true);
     },
     _offHit: function() {
         this.active = false;
         this.color('white');
+        this.trigger('Bump', false);
     }
 });
 
@@ -406,9 +408,11 @@ var toggleToolbox = function(v) {
     }
     Crafty('Toolbox').each(function() {
         this.visible = Crafty.showToolbox;
-        this._children.map(function(c) {
-            c.visible = Crafty.showToolbox;
-        });
+        if (this._children) {
+            this._children.map(function(c) {
+                c.visible = Crafty.showToolbox;
+            });
+        }
     });
 };
 
@@ -420,9 +424,12 @@ var toggleCircuit = function(v) {
     }
     var hide = function() {
         this.visible = Crafty.showCircuit;
-        this._children.map(function(c) {
-            c.visible = Crafty.showCircuit;
-        });
+        if (this.css) this.css('visibility', Crafty.showCircuit ? 'visible' : 'hidden');
+        if (this._children) {
+            this._children.map(function(c) {
+                c.visible = Crafty.showCircuit;
+            });
+        }
     };
     Crafty('Wire, Gate, Sink, Source').each(hide);
     if (!Crafty.showCircuit) {
@@ -514,16 +521,45 @@ Crafty.scene('Game', function() {
     var botOptions = {x:300, y:300};
     Crafty.bot = Bot(botOptions);
     var bot = Crafty.bot;
-    var thrust_on = Crafty.e('Sink').attr({x:20, y:20}).onSet(function(v) {
-       if (v) {
-           if (!bot.bottomThruster) bot.bottomThruster = Thruster(bot, 'bottom');
-       } else {
-           if (bot.bottomThruster) {
-               bot.bottomThruster.destroy();
-               bot.bottomThruster = null;
-           }
-       }
-    });
+    
+    Crafty.e('Sink').attr({x:450, y:20, id:'tT'}).onSet(function(v) {
+        if (v) {
+            if (!bot.topThruster) bot.topThruster = Thruster(bot, 'top');
+        } else {
+            if (bot.topThruster) {
+                bot.topThruster.destroy();
+                bot.topThruster = null;}}});
+    Crafty.e('Sink').attr({x:450, y:580, id:'bT'}).onSet(function(v) {
+        if (v) {
+            if (!bot.bottomThruster) bot.bottomThruster = Thruster(bot, 'bottom');
+        } else {
+            if (bot.bottomThruster) {
+                bot.bottomThruster.destroy();
+                bot.bottomThruster = null;}}});
+    Crafty.e('Sink').attr({x:20, y:350, id:'lT'}).onSet(function(v) {
+        if (v) {
+            if (!bot.leftThruster) bot.leftThruster = Thruster(bot, 'left');
+        } else {
+            if (bot.leftThruster) {
+                bot.leftThruster.destroy();
+                bot.leftThruster = null;}}});
+    Crafty.e('Sink').attr({x:780, y:350, id:'rT'}).onSet(function(v) {
+        if (v) {
+            if (!bot.rightThruster) bot.rightThruster = Thruster(bot, 'right');
+        } else {
+            if (bot.rightThruster) {
+                bot.rightThruster.destroy();
+                bot.rightThruster = null;}}});
+
+    topBumper = Crafty.e('Source').attr({x:350, y:20, id:'tB'});
+    bottomBumper = Crafty.e('Source').attr({x:350, y:580, id:'tB'});
+    leftBumper = Crafty.e('Source').attr({x:20, y:250, id:'tB'});
+    rightBumper = Crafty.e('Source').attr({x:780, y:250, id:'tB'});    
+
+    bot.topBumper.bind('Bump', function(v) { topBumper.set(v); });
+    bot.bottomBumper.bind('Bump', function(v) { bottomBumper.set(v); });
+    bot.leftBumper.bind('Bump', function(v) { leftBumper.set(v); });
+    bot.rightBumper.bind('Bump', function(v) { rightBumper.set(v); });
 
     Crafty.e('KeyboardEvent').bind('KeyDown', keyDown).bind('KeyUp', keyUp);
     
@@ -546,13 +582,13 @@ Crafty.scene('Game', function() {
         this.attr({x: 20, y: 150});
         FlipFlop(opt).addComponent('Save');        
     });
-    var proto_v_wall = Crafty.e('Wall, Draggable, Toolbox').color('green').attr({x:20, y:200, h:100, w:20, z: 10});
+    var proto_v_wall = Crafty.e('2D, Color, Canvas, Draggable, Toolbox').color('green').attr({x:20, y:200, h:100, w:20, z: 10});
     proto_v_wall.bind('StopDrag', function(e) {
         var opt = {x:this._x, y:this._y};
         this.attr({x: 20, y: 200});
         Crafty.e('Wall, Draggable, Save').color('green').attr({x:opt.x, y:opt.y, h:100, w:20, z: 10});
     });
-    var proto_h_wall = Crafty.e('Wall, Draggable, Toolbox').color('green').attr({x:20, y:350, h:20, w:100, z: 10});
+    var proto_h_wall = Crafty.e('2D, Color, Canvas, Draggable, Toolbox').color('green').attr({x:20, y:350, h:20, w:100, z: 10});
     proto_h_wall.bind('StopDrag', function(e) {
         var opt = {x:this._x, y:this._y};
         this.attr({x: 20, y: 350});
