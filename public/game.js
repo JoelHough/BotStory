@@ -87,6 +87,7 @@ Crafty.c('Wireable', {
         this.dragging = true;
     },
     _onUp: function(e) {
+        if (e.mouseButton !== Crafty.mouseButtons.LEFT) return;
         var wire = Crafty.mousePort.wire;
         if (wire) {
             if (this.wire) this.wire.destroy();
@@ -99,6 +100,7 @@ Crafty.c('Wireable', {
         }
     },
     _onUpOutside: function(e) {
+        if (e.mouseButton !== Crafty.mouseButtons.LEFT) return;
         if (!this.dragging) return;
         this.dragging = false;
         if (Crafty.mousePort.wire) Crafty.mousePort.wire.destroy();
@@ -492,8 +494,8 @@ var keyDown = function(e) {
         toggleCircuit();
     } else if (e.key == Crafty.keys['S']) {
         Crafty.saveData = save();
-        if (content_return_url) {
-            window.location = content_return_url + '?return_type=iframe&url=' + encodeURIComponent(window.location + '?save=' + JSON.stringify(Crafty.saveData)) + '&width=840&height=640';
+        if (window['content_return_url']) {
+            window.location.replace(window['content_return_url'] + '?return_type=iframe&url=' + encodeURIComponent(window.location + '?save=' + JSON.stringify(Crafty.saveData)) + '&width=840&height=640');
         }
         console.log(Crafty.saveData);
     } else if (e.key == Crafty.keys['L']) {
@@ -552,9 +554,9 @@ Crafty.scene('Game', function() {
                 bot.rightThruster = null;}}});
 
     topBumper = Crafty.e('Source').attr({x:350, y:20, id:'tB'});
-    bottomBumper = Crafty.e('Source').attr({x:350, y:580, id:'tB'});
-    leftBumper = Crafty.e('Source').attr({x:20, y:250, id:'tB'});
-    rightBumper = Crafty.e('Source').attr({x:780, y:250, id:'tB'});    
+    bottomBumper = Crafty.e('Source').attr({x:350, y:580, id:'bB'});
+    leftBumper = Crafty.e('Source').attr({x:20, y:250, id:'lB'});
+    rightBumper = Crafty.e('Source').attr({x:780, y:250, id:'rB'});    
 
     bot.topBumper.bind('Bump', function(v) { topBumper.set(v); });
     bot.bottomBumper.bind('Bump', function(v) { bottomBumper.set(v); });
