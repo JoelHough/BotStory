@@ -1,5 +1,6 @@
 require 'json'
 require 'net/http'
+require 'ims/lti'
 
 class BotStory < Sinatra::Base
 
@@ -49,6 +50,7 @@ class BotStory < Sinatra::Base
     },
     time_limit: 3_600, # one hour
     success: ->(params, req, res) {
+      req.env['rack.session'][:launch_params] = params
       req.env['rack.session'][:user] = params['user_id']
       req.env['rack.session'][:course] = params['course_id']
     },
@@ -58,9 +60,9 @@ class BotStory < Sinatra::Base
           #url: '',
           icon_url: 'https://lti-examples.heroku.com/graph.tk/favicon.png',
           enabled: true,
-          selection_width: '500',
-          selection_height: '400',
-          text: 'Discography'
+          selection_width: '840',
+          selection_height: '640',
+          text: 'Bot Story'
         }
       }
     },
@@ -70,6 +72,10 @@ Logic game
     END
 
   get '/' do
+    if (session[:launch_params])
+      @tp = IMS::LTI::ToolProvider.new(CONSUMER_KEY, CONSUMER_SECRET, session[:launch_params])
+      @tp.extend IMS::LTI::Extensions::Content::ToolProvider
+    end
     js :crafty, :game
     erb :index
   end

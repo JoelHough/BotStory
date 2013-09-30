@@ -107,14 +107,20 @@ Crafty.c('Wireable', {
 
 Crafty.c('Sink', {
     init: function() {
-        this.requires('2D, Color, Canvas, Wireable');
+        this.requires('2D, coldSink, Canvas, Wireable');
         this.isSource = false;
         this.attr({w: PORT_WIDTH, h: PORT_HEIGHT, z:1000});
         this.set(false);
     },
     set: function(val) {
         this._active = val;
-        this.color(val ? 'red' : 'white');
+        if (val) {
+            this.removeComponent('coldSink');
+            this.addComponent('hotSink');
+        } else {
+            this.removeComponent('hotSink');
+            this.addComponent('coldSink');            
+        }
         if (this._onSet) this._onSet(val);
         return this;
     },
@@ -126,21 +132,27 @@ Crafty.c('Sink', {
 
 Crafty.c('Source', {
     init: function() {
-        this.requires('2D, Color, Canvas, Wireable');
+        this.requires('2D, coldSource, Canvas, Wireable');
         this.isSource = true;
         this.attr({w: PORT_WIDTH, h: PORT_HEIGHT, z:1000});
         this.set(false);
     },
     set: function(val) {
         this._active = val;
-        this.color(val ? 'red' : 'white');
+        if (val) {
+            this.removeComponent('coldSource');
+            this.addComponent('hotSource');
+        } else {
+            this.removeComponent('hotSource');
+            this.addComponent('coldSource');            
+        }
         return this;
     }
 });
 
 Crafty.c('Gate', {
     init: function() {
-        this.requires('2D, Color, Canvas, Draggable');
+        this.requires('2D, Canvas, Draggable');
         this.attr({z:1000});
     },
     onClock: function(f) {
@@ -165,9 +177,15 @@ var NotGate = function(opt) {
     var input = Crafty.e('Sink').attr({x: x - PORT_WIDTH, y: y + y_offset, id: opt.in0});
     var output = Crafty.e('Source').attr({x: x + GATE_WIDTH, y: y + y_offset, id: opt.out0}).set(true);
     
-    var gate = Crafty.e('Gate').color('red').attr({x: x, y: y, w: GATE_WIDTH, h: GATE_HEIGHT}).onClock(
+    var gate = Crafty.e('Gate, hotNot').attr({x: x, y: y, w: GATE_WIDTH, h: GATE_HEIGHT}).onClock(
         function () {
-            this.color(input._active ? 'white' : 'red');
+            if (!input._active) {
+                this.removeComponent('not');
+                this.addComponent('hotNot');
+            } else {
+                this.removeComponent('hotNot');
+                this.addComponent('not');            
+            }
             output.set(!input._active);
             if (!input.wire) input.set(false);
         }
@@ -181,7 +199,49 @@ var NotGate = function(opt) {
         gate.clock();
     }
     gate.opt = function() {
-        return {x: this._x, y: this._y, input: this.input._active, in0: input.id, out0: output.id};  
+        return {x: this._x, y: this._y, input: this.input._active,
+                in0: this.input.id, out0: this.output.id};  
+    };
+    return gate;
+};
+
+var FlipFlop = function(opt) {
+    var x = opt.x;
+    var y = opt.y;
+    var in_a = Crafty.e('Sink').attr({x: x - PORT_WIDTH, y: y, id: opt.in0});
+    var in_b = Crafty.e('Sink').attr({x: x - PORT_WIDTH, y: y + GATE_HEIGHT - PORT_HEIGHT, id: opt.in1});
+    var out_a = Crafty.e('Source').attr({x: x + GATE_WIDTH, y: y, id: opt.out0});
+    var out_b = Crafty.e('Source').attr({x: x + GATE_WIDTH, y: y + GATE_HEIGHT - PORT_HEIGHT, id: opt.out1});
+    out_a.set(true);
+    var gate = Crafty.e('Gate, ffA').attr({x: x, y: y, w: GATE_WIDTH, h: GATE_HEIGHT}).onClock(
+        function() {
+            if (in_a._active) {
+                this.removeComponent('ffB');
+                this.addComponent('ffA');
+                out_a.set(true);
+                out_b.set(false);
+            } else if (in_b._active) {
+                this.removeComponent('ffA');
+                this.addComponent('ffB');
+                out_a.set(false);
+                out_b.set(true);
+            }
+            if (!in_a.wire) in_a.set(false);
+            if (!in_b.wire) in_b.set(false);
+        });
+    gate.attach(in_a, in_b, out_a, out_b);
+    gate.in_a = in_a;
+    gate.in_b = in_b;
+    gate.out_a = out_a;
+    gate.out_b = out_b;
+    gate.gate = 'ff';
+    if (opt.in_a != null) gate.in_a._active = opt.in_a;
+    if (opt.in_b != null) gate.in_b._active = opt.in_b;
+    if (opt.in_a != null || opt.in1 != null) gate.clock();
+    gate.opt = function() {
+        return {x: this._x, y: this._y,
+                in_a: this.in_a._active, in_b: this.in_b._active,
+                in0: this.in_a.id, in1: this.in_b.id, out0: this.out_a.id, out1: this.out_b.id};
     };
     return gate;
 };
@@ -394,7 +454,7 @@ var save = function() {
             wires: wires};
 };
 
-var gateFuncs = {not: NotGate};
+var gateFuncs = {not: NotGate, ff: FlipFlop};
 
 var load = function(saveData) {
     Crafty('Save').each (function() {this.destroy();});
@@ -425,6 +485,9 @@ var keyDown = function(e) {
         toggleCircuit();
     } else if (e.key == Crafty.keys['S']) {
         Crafty.saveData = save();
+        if (content_return_url) {
+            window.location = content_return_url + '?return_type=iframe&url=' + encodeURIComponent(window.location + '?save=' + JSON.stringify(Crafty.saveData)) + '&width=840&height=640';
+        }
         console.log(Crafty.saveData);
     } else if (e.key == Crafty.keys['L']) {
         load(Crafty.saveData);
@@ -476,6 +539,13 @@ Crafty.scene('Game', function() {
         this.attr({x: 20, y: 100});
         NotGate(opt).addComponent('Save');
     });
+    var proto_ff = FlipFlop({x:20, y:150});
+    proto_ff.addComponent('Toolbox');
+    proto_ff.bind('StopDrag', function(e) {
+        var opt = {x:this._x, y:this._y};
+        this.attr({x: 20, y: 150});
+        FlipFlop(opt).addComponent('Save');        
+    });
     var proto_v_wall = Crafty.e('Wall, Draggable, Toolbox').color('green').attr({x:20, y:200, h:100, w:20, z: 10});
     proto_v_wall.bind('StopDrag', function(e) {
         var opt = {x:this._x, y:this._y};
@@ -492,7 +562,10 @@ Crafty.scene('Game', function() {
     toggleToolbox(false);
 
     /* load */
-    
+    if(match=(new RegExp('[?&]save=([^&]*)')).exec(window.location.search))
+      var save = decodeURIComponent(match[1]);
+    if (save) load(JSON.parse(save));
+
 }, function() {
     // destroy wires?
 });
@@ -500,6 +573,8 @@ Game = {
   start: function() {
       Crafty.init(800, 600);
       Crafty.background('rgb(0,0,100)');
+      Crafty.sprite(20, 30, 'gates.png', {hotNot:[0,0], not:[0,1], ffA:[1,0], ffB:[1,1]});
+      Crafty.sprite(15, 12, 'ports.png', {hotSink:[0,0], coldSink:[0,1], hotSource:[1,0], coldSource:[1,1]});
       Crafty.scene('Game');
   }
 }
